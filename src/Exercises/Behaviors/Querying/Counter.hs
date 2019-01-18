@@ -18,7 +18,10 @@ counterExercise' :: Reflex t
                  -> Event t ()
                  -> Event t Int
 counterExercise' bCount eAdd eReset =
-  never
+  leftmost [
+    attachWith (+) bCount eAdd
+  , 0 <$ bCount <@ eReset
+  ]
 
 counterExercise :: Reflex t
                 => Behavior t Int
@@ -26,4 +29,4 @@ counterExercise :: Reflex t
                 -> Event t ()
                 -> Event t Int
 counterExercise bCount eAdd eReset =
-  never
+  counterExercise' bCount (1 <$ eAdd) eReset

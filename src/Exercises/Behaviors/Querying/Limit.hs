@@ -9,6 +9,7 @@ module Exercises.Behaviors.Querying.Limit (
     limitExercise
   ) where
 
+import Control.Applicative (liftA2)
 import Reflex
 
 import Exercises.Behaviors.Querying.Counter
@@ -20,4 +21,6 @@ limitExercise :: Reflex t
               -> Event t ()
               -> Event t Int
 limitExercise bCount bLimit eAdd eReset =
-  never
+  counterExercise bCount eAdd' eReset
+    where
+      eAdd' = gate (liftA2 (<) bCount bLimit) eAdd

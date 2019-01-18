@@ -10,7 +10,9 @@ module Exercises.Behaviors.Creating.Limit (
     limitExercise
   ) where
 
+import Control.Applicative
 import Control.Monad.Fix (MonadFix)
+import Data.Function ((&))
 
 import Reflex
 
@@ -20,4 +22,17 @@ limitExercise :: (Reflex t, MonadFix m, MonadHold t m)
              -> Event t ()
              -> m (Behavior t Int)
 limitExercise bCount eAdd eReset = mdo
-  pure (pure 0)
+  let
+    def = 5
+    bEq = liftA2 (==) bCount bLimit
+    b0 = (==0) <$> bCount
+    eFn = mergeWith (.) [
+          (+1)    <$ gate bEq eReset
+        , const def <$ gate b0 eReset
+      ]
+    eBonus = flip id <$> bLimit <@> eFn
+  
+  bBonus <- hold def eBonus
+  -- let bLimit = bBonus + pure 5
+  let bLimit = bBonus
+  pure bLimit

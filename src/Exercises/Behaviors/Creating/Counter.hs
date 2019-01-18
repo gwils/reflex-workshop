@@ -18,5 +18,8 @@ import Reflex
 counterExercise :: (Reflex t, MonadFix m, MonadHold t m)
                 => Event t (Int -> Int)
                 -> m (Behavior t Int, Event t Int)
-counterExercise eFn =
-  pure (pure 0, never)
+counterExercise eFn = mdo
+  let
+    eOut = flip id <$> bOut <@> eFn
+  bOut <- hold 0 eOut
+  pure (bOut, eOut)

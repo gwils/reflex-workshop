@@ -23,4 +23,7 @@ counterTextExercise :: Reflex t
                     -> Event t ()
                     -> (Event t Text, Event t Int)
 counterTextExercise bCount bText eAdd eReset =
-  (never, never)
+  let
+    (oeErr, oeAdd) = fmapMaybeExercise (bText <@ eAdd)
+  in
+    (oeErr, counterExercise' bCount oeAdd eReset)

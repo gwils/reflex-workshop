@@ -9,11 +9,12 @@ module Exercises.Behaviors.Instances.Apply (
     applyExercise
   ) where
 
+import Control.Applicative (liftA2)
 import Reflex
 
 applyExercise :: Reflex t
               => Behavior t Int
               -> Behavior t Int
               -> Behavior t Int
-applyExercise bIn1 bIn2 =
-  pure 0
+applyExercise =
+  liftA2 (*)

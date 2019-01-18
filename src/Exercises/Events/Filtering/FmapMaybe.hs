@@ -25,4 +25,4 @@ convert = readMaybe . Text.unpack
 
 fmapMaybeExercise :: Reflex t => Event t Text -> (Event t Text, Event t Int)
 fmapMaybeExercise eIn =
-  (never, never)
+  fanEither $ fmap (maybe (Left "Not an int") Right . convert) eIn

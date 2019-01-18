@@ -15,4 +15,4 @@ fmapExercise :: (Reflex t, MonadHold t m)
              => Event t Int
              -> m (Behavior t Int)
 fmapExercise eIn =
-  pure (pure 0)
+  hold 0 eIn

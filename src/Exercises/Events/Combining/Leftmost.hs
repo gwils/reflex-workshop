@@ -25,4 +25,9 @@ leftmostExercise :: Reflex t
                     , Event t Text
                     )
 leftmostExercise eIn =
-  (never, never, never, never)
+  (fizz, buzz, fizzbuzz, out)
+    where
+      fizzbuzz = fizz <> buzz
+      fizz = "Fizz" <$ ffilter (\x -> x `mod` 3 == 0) eIn
+      buzz = "Buzz" <$ ffilter (\x -> x `mod` 5 == 0) eIn
+      out = leftmost [fizzbuzz, Text.pack . show <$> eIn]
