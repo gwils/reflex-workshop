@@ -15,5 +15,6 @@ import Reflex.Dom.Core
 textExercise :: MonadWidget t m
              => Dynamic t Int
              -> m ()
-textExercise dIn =
-  pure ()
+textExercise dIn = do
+  el "div" $ text "Input"
+  el "div" $ display dIn

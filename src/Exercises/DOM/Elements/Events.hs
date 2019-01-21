@@ -20,4 +20,8 @@ eventsExercise :: MonadWidget t m
                -> m a
                -> m (Event t ())
 eventsExercise dIn w =
-  pure never
+  let
+    hidden = fmap (bool mempty ("hidden" =: "")) dIn
+  in do
+    (e,_) <- elDynAttr' "div" (pure ("class" =: "text-uppercase") <> hidden) w
+    pure (domEvent Click e)

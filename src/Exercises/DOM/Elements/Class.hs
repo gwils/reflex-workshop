@@ -20,4 +20,7 @@ classExercise :: MonadWidget t m
               -> m a
               -> m a
 classExercise dIn w =
-  w
+  let
+    invis = fmap (bool "" " invisible") dIn
+  in
+    elDynClass "div" ("text-uppercase" <> invis) w

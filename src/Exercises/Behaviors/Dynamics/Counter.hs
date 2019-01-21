@@ -20,4 +20,4 @@ counterExercise :: (Reflex t, MonadFix m, MonadHold t m)
                 => Event t (Int -> Int)
                 -> m (Dynamic t Int)
 counterExercise eFn =
-  pure (pure 0)
+  foldDyn id 0 eFn

@@ -16,5 +16,12 @@ import Util.Bootstrap
 
 buttonExercise :: MonadWidget t m
                => m ()
-buttonExercise =
+buttonExercise = do
+  add <- el "div" $ button "Add"
+  res <- el "div" $ button "Reset"
+  txt <- foldDyn id 0 $ mergeWith (.) [
+      (+1) <$ add
+    , const 0 <$ res
+    ]
+  el "div" $ display txt
   pure ()

@@ -21,4 +21,9 @@ textExercise :: (Reflex t, MonadFix m, MonadHold t m)
              -> Event t Text
              -> m (Behavior t [Text], Event t [Text])
 textExercise bIn eIn = mdo
-  pure (pure [], never)
+  let
+    eList = attachWith (flip (:)) bOut eIn
+    eOut = take <$> bIn <@> eList
+
+  bOut <- hold [] eOut
+  pure (bOut, eOut)

@@ -20,4 +20,7 @@ attributesExercise :: MonadWidget t m
                    -> m a
                    -> m a
 attributesExercise dIn w =
-  w
+  let
+    hidden = fmap (bool mempty ("hidden" =: "")) dIn
+  in
+    elDynAttr "div" (pure ("class" =: "text-uppercase") <> hidden) w

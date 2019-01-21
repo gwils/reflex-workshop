@@ -16,5 +16,7 @@ import Reflex
 uniqueExercise :: (Reflex t, MonadFix m, MonadHold t m)
                => Dynamic t (Int, Int)
                -> m (Dynamic t Int, Dynamic t Int)
-uniqueExercise dIn =
-  pure (fst <$> dIn, snd <$> dIn)
+uniqueExercise dIn = do
+  dFst <- holdUniqDyn (fst <$> dIn)
+  dSnd <- holdUniqDyn (snd <$> dIn)
+  pure (dFst, dSnd)
