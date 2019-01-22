@@ -7,15 +7,12 @@ Portability : non-portable
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
-{-# LANGUAGE TupleSections #-}
 module Exercises.Todo.List where
 
 import Control.Lens
 
-import Data.Text (Text)
 import qualified Data.Text as Text
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Reflex.Dom.Core
@@ -23,32 +20,43 @@ import Reflex.Dom.Core
 import Common.Todo
 import Exercises.Todo.Item
 
-addItem :: MonadWidget t m => m (Event t TodoItem)
-addItem =
-  el "div" $ mdo
-    ti <- textInput $ def & textInputConfig_setValue .~ ("" <$ eValue)
-    let
-      dValue = ti ^. textInput_value
-      dStripped = Text.strip <$> dValue
-      eEnter = keypress Enter ti
-      eValue = ffilter (not . Text.null) (current dValue <@ eEnter)
-    pure (TodoItem False <$> eValue)
+addItem :: MonadWidget t m
+        => m (Event t TodoItem)
+addItem = mdo
+  ti <- textInput $
+    def & setValue .~ ("" <$ eEnter)
 
+  let
+    eEnter    = keypress Enter ti
+    bText     = current $ value ti
+    eStripped = Text.strip <$> bText <@ eEnter
+    eText     = ffilter (not . Text.null) eStripped
+    eAdd      = TodoItem False <$> eText
+
+  pure eAdd
 
 todoListExercise :: MonadWidget t m
                  => [TodoItem]
                  -> m ()
 todoListExercise items = mdo
-  eAdd <- addItem
-  eAdd' <- numberOccurrencesFrom (length items) (Just <$> eAdd)
+  eItem <- addItem
+  eAdd  <- numberOccurrencesFrom (length items) eItem
   let
-    eRemove' = fmap (,Nothing) eRemove
-    eAddRemove = leftmost [eAdd', eRemove']
+    eInsert = (\(k,v) -> k =: Just v) <$> eAdd
     m = Map.fromList . zip [0..] $ items
-    eNewMap = ffor eAddRemove $ \(n,mti) -> n =: mti
-  dMap <- listHoldWithKey m eNewMap $ \_ item ->
-    todoItem item
-  let eRemove = switchDyn $ fmap (leftmost . fmap (uncurry (<$)) . Map.toList . fmap snd) dMap
+  dmes <- listHoldWithKey m eListChange $ \_ item -> do
+    (_, eRemove) <- todoItem item
+    pure eRemove
+
+  let
+    eRemoves =
+      fmap (Nothing <$) .
+      switchDyn .
+      fmap mergeMap $
+      dmes
+    eListChange =
+      leftmost [eRemoves, eInsert]
+
   pure ()
 
 todoListModelExercise :: MonadWidget t m

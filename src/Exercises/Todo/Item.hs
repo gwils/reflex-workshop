@@ -6,9 +6,8 @@ Stability   : experimental
 Portability : non-portable
 -}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts, TypeFamilies #-}
 {-# LANGUAGE RecursiveDo #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 module Exercises.Todo.Item where
 
 import Control.Monad
@@ -27,80 +26,111 @@ import Reflex.Dom.Core
 
 import Common.Todo
 
-todoText :: forall t m. MonadWidget t m
+todoComplete :: MonadWidget t m
+             => Bool
+             -> m (Event t (Bool -> Bool))
+todoComplete iComplete =
+  divClass "p-1" $ do
+    cb <- checkbox iComplete def
+    pure $ const <$> cb ^. checkbox_change
+
+todoTextRead :: MonadWidget t m
+             => Dynamic t Bool
+             -> Text
+             -> Workflow t m (Event t (Text -> Text), Event t ())
+todoTextRead dComplete iText = Workflow $ do
+  let
+    dCompleteClass = bool "" " completed" <$> dComplete
+  (e, _) <- elDynClass' "div" (pure "p-1" <> dCompleteClass) $
+    text iText
+  pure ((never, never), todoTextWrite dComplete iText <$ domEvent Dblclick e)
+
+todoTextWrite :: MonadWidget t m
+              => Dynamic t Bool
+              -> Text
+              -> Workflow t m (Event t (Text -> Text), Event t ())
+todoTextWrite dComplete iText = Workflow $ do
+  divClass "p-1" $ do
+    let
+      dCompleteClass =
+        bool mempty ("class" =: "completed") <$> dComplete
+    ti <- textInput $
+      def & textInputConfig_initialValue .~ iText
+          & attributes .~ dCompleteClass
+    let
+      eEnter   = keypress Enter ti
+      bText    = current $ value ti
+      eText    = Text.strip <$> bText <@ eEnter
+      eNotNull =       ffilter (not . Text.null) eText
+      eRemove  = () <$ ffilter        Text.null  eText
+      eChange  = const <$> eNotNull
+    pure ((eChange, eRemove), todoTextRead dComplete <$> eNotNull)
+
+todoText :: MonadWidget t m
          => Dynamic t Bool
          -> Text
          -> m (Event t (Text -> Text), Event t ())
-todoText dComplete iText = mdo
-  let
-    dCompleteClass = bool "" " completed" <$> dComplete
-
-    splitOnEmpty t = if Text.null t then Right () else Left (const t)
-
-    wInput, wStatic :: Text -> Workflow t m (Event t (Either (Text -> Text) ()))
-    wInput iText = Workflow $ do
-      ti <- textInput $ def & textInputConfig_initialValue .~ iText
-      let eEnter = keypress Enter ti
-      let tValue = current (ti ^. textInput_value)
-      pure (splitOnEmpty <$> tValue <@ eEnter, wStatic <$> tValue <@ eEnter)
-
-    wStatic iText = Workflow $ do
-      (e,_) <- el' "div" $ text iText
-      let dblClick = domEvent Dblclick e
-      pure (never, wInput iText <$ dblClick)
-
-  deAction <- elDynClass "div" (pure "p-1" <> dCompleteClass) $
-      workflow (wStatic iText)
+todoText dComplete iText = do
+  des <- workflow $ todoTextRead dComplete iText
 
   let
-    eAction = switchDyn deAction
-    ret@(eUpdate, eReset) = fanEither eAction
+    eChange = switchDyn . fmap fst $ des
+    eRemove = switchDyn . fmap snd $ des
 
-  pure ret
+  pure (eChange, eRemove)
+
+todoRemove :: MonadWidget t m
+           => m (Event t ())
+todoRemove =
+  divClass "p-1" $
+     button "x"
 
 todoItem :: MonadWidget t m
          => TodoItem
          -> m (Event t (TodoItem -> TodoItem), Event t ())
-todoItem item = divClass "d-flex flex-row align-items-center" $ mdo
-  let
-    iText = item ^. todoItem_text
-    iComplete = item ^. todoItem_complete
-  
-  eComplete <- todoCheckbox iComplete
-  dComplete <- foldDyn id iComplete eComplete
+todoItem item =
+  divClass "d-flex flex-row align-items-center" $ do
+    let
+      iComplete = item ^. todoItem_complete
+      iText     = item ^. todoItem_text
 
-  (eText, eNoText) <- todoText dComplete iText
+    eComplete <- todoComplete iComplete
+    dComplete <- foldDyn ($) iComplete eComplete
+    (eText, eRemoveText) <- todoText dComplete iText
+    eRemoveButton <- todoRemove
 
-  btn <- todoRemove
+    let
+      eChange = mergeWith (.) [
+          over todoItem_complete <$> eComplete
+        , over todoItem_text <$> eText
+        ]
+      eRemove = leftmost [
+          eRemoveText
+        , eRemoveButton
+        ]
 
-  let
-    fn = set todoItem_complete <$> leftmost [updated dComplete, True <$ eText]
-    eRemove = leftmost [btn, eNoText]
-  pure (fn, eRemove)
+    pure (eChange, eRemove)
+
+firings :: MonadWidget t m
+        => Text
+        -> Event t a
+        -> m ()
+firings label e =
+  el "div" $ do
+    dCount <- count e
+
+    text label
+    text " has been fired "
+    display dCount
+    text " time"
+    dynText $ bool "s" "" . (== 1) <$> dCount
 
 todoItemExercise :: MonadWidget t m
                  => TodoItem
                  -> m ()
-todoItemExercise ti = do
-  (eChange,eWidget) <- todoItem ti
-  countDisplay "Change" eChange
-  countDisplay "Remove" eWidget
+todoItemExercise item = do
+  (eChange, eRemove) <- el "div" $
+    todoItem item
 
-countDisplay :: MonadWidget t m => Text -> Event t a -> m ()
-countDisplay name dIn = divClass "p-1" $ do
-  dCount <- count dIn
-  text name
-  text " has been fired "
-  display dCount
-  text " time"
-  dynText $ ffor dCount $ \c -> if c /= 1 then "s" else ""
-
-todoCheckbox :: MonadWidget t m => Bool -> m (Event t (Bool -> Bool))
-todoCheckbox b = divClass "p-1" $ do
-  cb <- checkbox b def
-  pure (const <$> cb ^. checkbox_change)
-
-todoRemove :: MonadWidget t m => m (Event t ())
-todoRemove =
-  divClass "p-1" $
-    button "x"
+  firings "Change" eChange
+  firings "Remove" eRemove
