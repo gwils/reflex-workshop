@@ -17,5 +17,16 @@ import Reflex.Dom.Core
 widgetHoldExercise :: MonadWidget t m
                    => Event t Bool
                    -> m (Dynamic t Int)
-widgetHoldExercise eClickable =
-  pure (pure 0)
+widgetHoldExercise eClickable = do
+  let
+    resetBtn, addBtn :: MonadWidget t m => m (Event t (Int-> Int))
+    resetBtn = (const 0 <$) <$> button "Wait..."
+    addBtn   = ((+1)    <$) <$> button "Click me"
+    emeAlter  = bool resetBtn addBtn <$> eClickable
+
+  deAlter <- el "div" $
+    widgetHold resetBtn emeAlter
+  
+  let eAlter = switchDyn deAlter
+  
+  foldDyn id 0 eAlter

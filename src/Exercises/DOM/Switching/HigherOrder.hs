@@ -19,5 +19,11 @@ higherOrderExercise :: (Reflex t, MonadFix m, MonadHold t m)
                     => Event t Bool
                     -> Event t ()
                     -> m (Dynamic t Int)
-higherOrderExercise eClickable eClick =
-  pure (pure 0)
+higherOrderExercise eClickable eClick = do
+  let
+    eReset = const 0 <$ eClick
+    eAdd   = (+ 1)   <$ eClick
+    eeAlter = bool eReset eAdd <$> eClickable
+
+  eAlter <-  switchHold never eeAlter
+  foldDyn id 0 eAlter

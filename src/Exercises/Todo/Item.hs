@@ -8,6 +8,7 @@ Portability : non-portable
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, TypeFamilies #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Exercises.Todo.Item where
 
 import Control.Monad
@@ -26,7 +27,7 @@ import Reflex.Dom.Core
 
 import Common.Todo
 
-todoText :: MonadWidget t m
+todoText :: forall t m. MonadWidget t m
          => Dynamic t Bool
          -> Text
          -> m (Event t (Text -> Text), Event t ())
@@ -34,13 +35,28 @@ todoText dComplete iText = mdo
   let
     dCompleteClass = bool "" " completed" <$> dComplete
 
-    bValue = current (ti ^. textInput_value)
-    eEnter = keypress Enter ti
     splitOnEmpty t = if Text.null t then Right () else Left (const t)
 
-  ti <- elDynClass "div" (pure "p-1" <> dCompleteClass) $
-      textInput $ def & textInputConfig_initialValue .~ iText
-  pure $ fanEither $ splitOnEmpty <$> bValue <@ eEnter
+    wInput, wStatic :: Text -> Workflow t m (Event t (Either (Text -> Text) ()))
+    wInput iText = Workflow $ do
+      ti <- textInput $ def & textInputConfig_initialValue .~ iText
+      let eEnter = keypress Enter ti
+      let tValue = current (ti ^. textInput_value)
+      pure (splitOnEmpty <$> tValue <@ eEnter, wStatic <$> tValue <@ eEnter)
+
+    wStatic iText = Workflow $ do
+      (e,_) <- el' "div" $ text iText
+      let dblClick = domEvent Dblclick e
+      pure (never, wInput iText <$ dblClick)
+
+  deAction <- elDynClass "div" (pure "p-1" <> dCompleteClass) $
+      workflow (wStatic iText)
+
+  let
+    eAction = switchDyn deAction
+    ret@(eUpdate, eReset) = fanEither eAction
+
+  pure ret
 
 todoItem :: MonadWidget t m
          => TodoItem
