@@ -10,6 +10,7 @@ Portability : non-portable
 module Exercises.Todo.List where
 
 import Control.Lens
+import Control.Monad
 
 import qualified Data.Text as Text
 
@@ -38,29 +39,32 @@ addItem = mdo
 todoListExercise :: MonadWidget t m
                  => [TodoItem]
                  -> m ()
-todoListExercise items = mdo
+todoListExercise = void . todoListModelExercise
+
+todoListModelExercise :: MonadWidget t m
+                      => [TodoItem]
+                      -> m (Dynamic t [TodoItem])
+todoListModelExercise items = mdo
   eItem <- addItem
   eAdd  <- numberOccurrencesFrom (length items) eItem
   let
     eInsert = (\(k,v) -> k =: Just v) <$> eAdd
     m = Map.fromList . zip [0..] $ items
   dmes <- listHoldWithKey m eListChange $ \_ item -> do
-    (_, eRemove) <- todoItem item
-    pure eRemove
+    (eChange, eRemove) <- todoItem item
+    let eItem = ($ item) <$> eChange
+    pure (eItem, eRemove)
 
   let
     eRemoves =
       fmap (Nothing <$) .
       switchDyn .
-      fmap mergeMap $
+      fmap (mergeMap . fmap snd) $
       dmes
     eListChange =
       leftmost [eRemoves, eInsert]
+    eMapOut = switchDyn $ fmap (mergeMap . fmap fst) dmes
+    eListOut = Map.elems <$> eMapOut
+  dListOut <- holdDyn [] eListOut
 
-  pure ()
-
-todoListModelExercise :: MonadWidget t m
-                      => [TodoItem]
-                      -> m (Dynamic t [TodoItem])
-todoListModelExercise items =
-  pure (pure [])
+  pure dListOut
