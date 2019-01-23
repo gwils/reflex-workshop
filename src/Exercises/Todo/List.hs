@@ -50,10 +50,10 @@ todoListModelExercise items = mdo
   let
     eInsert = (\(k,v) -> k =: Just v) <$> eAdd
     m = Map.fromList . zip [0..] $ items
-  dmes <- listHoldWithKey m eListChange $ \_ item -> do
+  dmes <- listHoldWithKey m eListChange $ \_ item -> mdo
     (eChange, eRemove) <- todoItem item
-    let eItem = ($ item) <$> eChange
-    pure (eItem, eRemove)
+    dItem <- foldDyn id item eChange
+    pure (dItem, eRemove)
 
   let
     eRemoves =
@@ -63,8 +63,6 @@ todoListModelExercise items = mdo
       dmes
     eListChange =
       leftmost [eRemoves, eInsert]
-    eMapOut = switchDyn $ fmap (mergeMap . fmap fst) dmes
-    eListOut = Map.elems <$> eMapOut
-  dListOut <- holdDyn [] eListOut
+    dListOut = fmap Map.elems $ joinDynThroughMap $ fmap (fmap fst) dmes
 
   pure dListOut
