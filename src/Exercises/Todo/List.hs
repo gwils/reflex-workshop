@@ -47,22 +47,15 @@ todoListModelExercise :: MonadWidget t m
 todoListModelExercise items = mdo
   eItem <- addItem
   eAdd  <- numberOccurrencesFrom (length items) eItem
+
   let
-    eInsert = (\(k,v) -> k =: Just v) <$> eAdd
+    eInsert = ffor eAdd $ \(k,v) -> k =: Just v
+    eListChange = leftmost [eRemoves, eInsert]
     m = Map.fromList . zip [0..] $ items
-  dmes <- listHoldWithKey m eListChange $ \_ item -> mdo
+
+  (dmd, eRemoves) <- runEventWriterT . listHoldWithKey m eListChange $ \k item -> mdo
     (eChange, eRemove) <- todoItem item
-    dItem <- foldDyn id item eChange
-    pure (dItem, eRemove)
+    tellEvent ((k =: Nothing) <$ eRemove)
+    foldDyn id item eChange
 
-  let
-    eRemoves =
-      fmap (Nothing <$) .
-      switchDyn .
-      fmap (mergeMap . fmap snd) $
-      dmes
-    eListChange =
-      leftmost [eRemoves, eInsert]
-    dListOut = fmap Map.elems $ joinDynThroughMap $ fmap (fmap fst) dmes
-
-  pure dListOut
+  pure (Map.elems <$> joinDynThroughMap dmd)

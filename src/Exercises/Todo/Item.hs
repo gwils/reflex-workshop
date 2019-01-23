@@ -49,7 +49,7 @@ todoTextWrite :: MonadWidget t m
               => Dynamic t Bool
               -> Text
               -> Workflow t m (Event t (Text -> Text), Event t ())
-todoTextWrite dComplete iText = Workflow $ do
+todoTextWrite dComplete iText = Workflow $
   divClass "p-1" $ do
     let
       dCompleteClass =
